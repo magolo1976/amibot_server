@@ -1,0 +1,15 @@
+services:
+  llm_api:
+    image: ghcr.io/magolo1976/amibot-api:latest
+    build:
+      context: .
+      dockerfile: llm_api/Dockerfile
+    container_name: amibot_llm_api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - MODELS_DIR=/app/models
+    volumes:
+      - ./model:/app/models:ro

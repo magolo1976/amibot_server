@@ -1,0 +1,122 @@
+# ==============================================================================
+# .gitignore - amibot_server (C++17 + ONNX Runtime + GGML / Whisper / Llama)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Modelos Pesados de IA (Excluidos de Git, sincronizados via SCP al VPS)
+# ------------------------------------------------------------------------------
+model/
+models/
+**/model/
+**/models/
+**/*.gguf
+model/*.bin
+models/*.bin
+*.bin
+!libraries/tts_comms/voices/*.bin
+!resources/tts_comms/voices/*.bin
+!test/samples/*.bin
+**/tts_onnx/
+onnx-community/
+*.onnx
+
+# ------------------------------------------------------------------------------
+# 2. Datos Sensibles, Secretos, Credenciales y Tokens
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+secrets/
+*.secret
+*.secrets
+*.password
+*.passwords
+*.key
+*.pem
+*.pfx
+*.p12
+*.cer
+*.crt
+id_rsa*
+id_ed25519*
+*credential*
+*token*
+auth*.json
+
+# ------------------------------------------------------------------------------
+# 3. Compilacion C++ / CMake / MSVC / GCC / Clang
+# ------------------------------------------------------------------------------
+[Dd]ebug/
+[Rr]elease/
+[Mm]in[Ss]ize[Rr]el/
+[Rr]el[Ww]ith[Dd]eb[Ii]nfo/
+x64/
+x86/
+build/
+**/build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.dir/
+*.tlog/
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.a
+*.exe
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# ------------------------------------------------------------------------------
+# 4. Dependencias Node.js (Se instalan nativamente en Linux dentro del Docker)
+# ------------------------------------------------------------------------------
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------------------------------------
+# 5. Bases de Datos, Backups y Almacenamiento Local
+# ------------------------------------------------------------------------------
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sql
+backups/
+**/backups/
+
+# ------------------------------------------------------------------------------
+# 6. Logs, Temporales y Caches
+# ------------------------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+scratch/
+.cache/
+__pycache__/
+*.pyc
+
+# ------------------------------------------------------------------------------
+# 7. IDEs y Editores de Codigo
+# ------------------------------------------------------------------------------
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.user

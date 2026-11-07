@@ -1,0 +1,6 @@
+_legacy/
+model/
+models/
+**/build/
+**/node_modules/
+**/*.gguf
