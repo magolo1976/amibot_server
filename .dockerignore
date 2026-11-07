@@ -1,6 +1,7 @@
+.git/
 _legacy/
-model/
-models/
+/model/
+/models/
 **/build/
 **/node_modules/
 **/*.gguf

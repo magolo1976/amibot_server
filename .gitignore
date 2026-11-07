@@ -5,13 +5,10 @@
 # ------------------------------------------------------------------------------
 # 1. Modelos Pesados de IA (Excluidos de Git, sincronizados via SCP al VPS)
 # ------------------------------------------------------------------------------
-model/
-models/
-**/model/
-**/models/
+/model/
+/models/
+/llm_api/models/
 **/*.gguf
-model/*.bin
-models/*.bin
 *.bin
 !libraries/tts_comms/voices/*.bin
 !resources/tts_comms/voices/*.bin
@@ -25,11 +22,13 @@ onnx-community/
 .env
 .env.*
 !.env.example
-secrets/
+/secrets/
 *.secret
 *.secrets
 *.password
 *.passwords
+*.token
+*.cred
 *.key
 *.pem
 *.pfx
@@ -38,19 +37,22 @@ secrets/
 *.crt
 id_rsa*
 id_ed25519*
-*credential*
-*token*
-auth*.json
+credentials.json
+secrets.json
+token.json
+tokens.json
+auth.json
+auth_*.json
 
 # ------------------------------------------------------------------------------
 # 3. Compilacion C++ / CMake / MSVC / GCC / Clang
 # ------------------------------------------------------------------------------
-[Dd]ebug/
-[Rr]elease/
-[Mm]in[Ss]ize[Rr]el/
-[Rr]el[Ww]ith[Dd]eb[Ii]nfo/
-x64/
-x86/
+/[Dd]ebug/
+/[Rr]elease/
+/[Mm]in[Ss]ize[Rr]el/
+/[Rr]el[Ww]ith[Dd]eb[Ii]nfo/
+/x64/
+/x86/
 build/
 **/build/
 CMakeFiles/
@@ -93,17 +95,17 @@ yarn-error.log*
 *.sqlite
 *.sqlite3
 *.sql
-backups/
+/backups/
 **/backups/
 
 # ------------------------------------------------------------------------------
 # 6. Logs, Temporales y Caches
 # ------------------------------------------------------------------------------
 *.log
-logs/
-tmp/
-temp/
-scratch/
+/logs/
+/tmp/
+/temp/
+/scratch/
 .cache/
 __pycache__/
 *.pyc
