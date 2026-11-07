@@ -1,9 +1,9 @@
 services:
   llm_api:
+    # Imagen publicada por GitHub Actions (el VPS no compila, solo descarga).
+    # Build local: docker build -f llm_api/Dockerfile -t ghcr.io/magolo1976/amibot-api:latest .
     image: ghcr.io/magolo1976/amibot-api:latest
-    build:
-      context: .
-      dockerfile: llm_api/Dockerfile
+    pull_policy: always
     container_name: amibot_llm_api
     restart: unless-stopped
     ports:
