@@ -15,7 +15,6 @@ models/*.bin
 *.bin
 !libraries/tts_comms/voices/*.bin
 !resources/tts_comms/voices/*.bin
-!test/samples/*.bin
 **/tts_onnx/
 onnx-community/
 *.onnx

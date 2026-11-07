@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /workspace
 
-# 1. Compilar llm_comms, stt_comms y tts_comms hacia /workspace/libraries/
+# 1. Copiar librerias base y compilar llm_comms, stt_comms y tts_comms hacia /workspace/libraries/
+COPY libraries /workspace/libraries
 COPY resources/llm_comms /workspace/resources/llm_comms
 COPY resources/stt_comms /workspace/resources/stt_comms
 COPY resources/tts_comms /workspace/resources/tts_comms
@@ -24,7 +25,7 @@ RUN cmake -S /workspace/resources/llm_comms -B /workspace/resources/llm_comms/bu
     cmake --build /workspace/resources/tts_comms/build --config Release -j $(nproc)
 
 # Instalar dependencias Node.js en Linux (ONNX Runtime nativo linux-x64 + phonemizer)
-RUN cd /workspace/resources/tts_comms && npm ci --omit=dev
+RUN cd /workspace/resources/tts_comms && npm install --omit=dev
 
 # 2. Compilar la API C++17 enlazada contra las 3 librerias
 COPY llm_api /workspace/llm_api
