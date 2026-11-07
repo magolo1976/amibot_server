@@ -417,21 +417,21 @@ public:
 #else
         if (fd_stdin_write >= 0) {
             const char* q = "{\"cmd\":\"quit\"}\n";
-            ssize_t ignored = write(fd_stdin_write, q, std::strlen(q));
+            ssize_t ignored = ::write(fd_stdin_write, q, std::strlen(q));
             (void)ignored;
-            close(fd_stdin_write);
+            ::close(fd_stdin_write);
             fd_stdin_write = -1;
         }
         if (fd_stdout_read >= 0) {
-            close(fd_stdout_read);
+            ::close(fd_stdout_read);
             fd_stdout_read = -1;
         }
         if (child_pid > 0) {
             int status = 0;
-            pid_t w = waitpid(child_pid, &status, WNOHANG);
+            pid_t w = ::waitpid(child_pid, &status, WNOHANG);
             if (w == 0) {
-                kill(child_pid, SIGKILL);
-                waitpid(child_pid, &status, 0);
+                ::kill(child_pid, SIGKILL);
+                ::waitpid(child_pid, &status, 0);
             }
             child_pid = -1;
         }
@@ -472,7 +472,7 @@ public:
         size_t got = 0;
         while (got < len) {
             size_t chunk = std::min<size_t>(len - got, 65536);
-            ssize_t n = read(fd, p + got, chunk);
+            ssize_t n = ::read(fd, p + got, chunk);
             if (n <= 0) {
                 return false;
             }
@@ -486,7 +486,7 @@ public:
         size_t sent = 0;
         while (sent < len) {
             size_t chunk = std::min<size_t>(len - sent, 65536);
-            ssize_t n = write(fd, p + sent, chunk);
+            ssize_t n = ::write(fd, p + sent, chunk);
             if (n <= 0) {
                 return false;
             }
@@ -584,38 +584,38 @@ public:
 
         int stdin_pipe[2] = {-1, -1};
         int stdout_pipe[2] = {-1, -1};
-        if (pipe(stdin_pipe) != 0) {
+        if (::pipe(stdin_pipe) != 0) {
             return false;
         }
-        if (pipe(stdout_pipe) != 0) {
-            close(stdin_pipe[0]);
-            close(stdin_pipe[1]);
+        if (::pipe(stdout_pipe) != 0) {
+            ::close(stdin_pipe[0]);
+            ::close(stdin_pipe[1]);
             return false;
         }
 
         signal(SIGPIPE, SIG_IGN);
-        pid_t pid = fork();
+        pid_t pid = ::fork();
         if (pid < 0) {
-            close(stdin_pipe[0]);
-            close(stdin_pipe[1]);
-            close(stdout_pipe[0]);
-            close(stdout_pipe[1]);
+            ::close(stdin_pipe[0]);
+            ::close(stdin_pipe[1]);
+            ::close(stdout_pipe[0]);
+            ::close(stdout_pipe[1]);
             return false;
         }
 
         if (pid == 0) {
-            dup2(stdin_pipe[0], STDIN_FILENO);
-            dup2(stdout_pipe[1], STDOUT_FILENO);
-            close(stdin_pipe[0]);
-            close(stdin_pipe[1]);
-            close(stdout_pipe[0]);
-            close(stdout_pipe[1]);
+            ::dup2(stdin_pipe[0], STDIN_FILENO);
+            ::dup2(stdout_pipe[1], STDOUT_FILENO);
+            ::close(stdin_pipe[0]);
+            ::close(stdin_pipe[1]);
+            ::close(stdout_pipe[0]);
+            ::close(stdout_pipe[1]);
             execlp("node", "node", resolved_cli_path.c_str(), "--worker", static_cast<char*>(nullptr));
             _exit(127);
         }
 
-        close(stdin_pipe[0]);
-        close(stdout_pipe[1]);
+        ::close(stdin_pipe[0]);
+        ::close(stdout_pipe[1]);
         fd_stdin_write = stdin_pipe[1];
         fd_stdout_read = stdout_pipe[0];
         child_pid = pid;

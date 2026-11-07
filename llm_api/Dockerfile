@@ -17,11 +17,11 @@ COPY resources/llm_comms /workspace/resources/llm_comms
 COPY resources/stt_comms /workspace/resources/stt_comms
 COPY resources/tts_comms /workspace/resources/tts_comms
 
-RUN cmake -S /workspace/resources/llm_comms -B /workspace/resources/llm_comms/build -DCMAKE_BUILD_TYPE=Release && \
+RUN cmake -S /workspace/resources/llm_comms -B /workspace/resources/llm_comms/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
     cmake --build /workspace/resources/llm_comms/build --config Release -j $(nproc) && \
-    cmake -S /workspace/resources/stt_comms -B /workspace/resources/stt_comms/build -DCMAKE_BUILD_TYPE=Release && \
+    cmake -S /workspace/resources/stt_comms -B /workspace/resources/stt_comms/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
     cmake --build /workspace/resources/stt_comms/build --config Release -j $(nproc) && \
-    cmake -S /workspace/resources/tts_comms -B /workspace/resources/tts_comms/build -DCMAKE_BUILD_TYPE=Release && \
+    cmake -S /workspace/resources/tts_comms -B /workspace/resources/tts_comms/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
     cmake --build /workspace/resources/tts_comms/build --config Release -j $(nproc)
 
 # Instalar dependencias Node.js en Linux (ONNX Runtime nativo linux-x64 + phonemizer)
