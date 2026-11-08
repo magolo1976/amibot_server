@@ -16,6 +16,7 @@ struct HttpRequest {
     std::string body;
     bool valid = false;
     std::string query;
+    std::string api_key; // Credencial recibida (X-API-Key, Authorization: Bearer o ?api_key=)
 };
 
 struct HttpResponse {
@@ -82,6 +83,12 @@ float json_extract_float(const std::string& json, const std::string& key, float 
 std::string query_extract_param(const std::string& query, const std::string& key, const std::string& default_val = "");
 
 HttpRequest parse_http_request(const std::string& raw_request);
+
+// Autenticacion por API key. Si 'expected_key' esta vacio la autenticacion queda desactivada.
+// La comparacion es en tiempo constante para evitar ataques de temporizacion.
+bool is_request_authorized(const HttpRequest& req, const std::string& expected_key);
+// Lee la clave configurada en la variable de entorno API_KEY (vacia = sin autenticacion).
+std::string configured_api_key();
 std::string build_http_response(const HttpResponse& resp);
 std::string build_http_response(int status_code, const std::string& status_text, const std::string& json_body);
 

@@ -169,8 +169,55 @@ HttpRequest parse_http_request(const std::string& raw_request) {
         }
     }
 
+    // Extraer credencial: X-API-Key > Authorization: Bearer > ?api_key=
+    {
+        size_t hdr_end = raw_request.find("\r\n\r\n");
+        if (hdr_end == std::string::npos) hdr_end = raw_request.size();
+        size_t pos = line_end;
+        std::string bearer_key;
+        while (pos < hdr_end) {
+            while (pos < hdr_end && (raw_request[pos] == '\r' || raw_request[pos] == '\n')) ++pos;
+            size_t eol = raw_request.find('\n', pos);
+            if (eol == std::string::npos || eol > hdr_end) eol = hdr_end;
+            std::string line = raw_request.substr(pos, eol - pos);
+            pos = eol;
+            size_t colon = line.find(':');
+            if (colon == std::string::npos) continue;
+            std::string name = line.substr(0, colon);
+            for (char& c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            std::string value = line.substr(colon + 1);
+            while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) value.erase(value.begin());
+            while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) value.pop_back();
+            if (name == "x-api-key") {
+                req.api_key = value;
+            } else if (name == "authorization" && value.size() > 7) {
+                std::string scheme = value.substr(0, 7);
+                for (char& c : scheme) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (scheme == "bearer ") bearer_key = value.substr(7);
+            }
+        }
+        if (req.api_key.empty()) req.api_key = bearer_key;
+        if (req.api_key.empty()) req.api_key = query_extract_param(req.query, "api_key");
+    }
+
     req.valid = !req.method.empty() && !req.path.empty();
     return req;
+}
+
+std::string configured_api_key() {
+    const char* env_key = std::getenv("API_KEY");
+    return env_key ? std::string(env_key) : std::string();
+}
+
+bool is_request_authorized(const HttpRequest& req, const std::string& expected_key) {
+    if (expected_key.empty()) return true;
+    const std::string& got = req.api_key;
+    unsigned char diff = static_cast<unsigned char>(got.size() != expected_key.size());
+    for (size_t i = 0; i < expected_key.size(); ++i) {
+        const char g = i < got.size() ? got[i] : '\0';
+        diff |= static_cast<unsigned char>(g ^ expected_key[i]);
+    }
+    return diff == 0;
 }
 
 std::string build_http_response(const HttpResponse& resp) {
@@ -180,7 +227,7 @@ std::string build_http_response(const HttpResponse& resp) {
         << "Content-Type: " << ctype << "\r\n"
         << "Access-Control-Allow-Origin: *\r\n"
         << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-        << "Access-Control-Allow-Headers: Content-Type\r\n"
+        << "Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key\r\n"
         << resp.extra_headers
         << "Connection: close\r\n"
         << "Content-Length: " << resp.body.size() << "\r\n\r\n";
@@ -750,6 +797,12 @@ HttpResponse ApiService::handle_http_request(const HttpRequest& req) {
         oss << "{\"status\":\"ok\",\"ready\":" << (!current_model.empty() ? "true" : "false")
             << ",\"loaded_model\":\"" << json_escape(current_model) << "\"}";
         return { 200, "OK", "application/json; charset=utf-8", "", oss.str() };
+    }
+
+    // Todo endpoint salvo OPTIONS y /health requiere API key (si API_KEY esta configurada)
+    if (!is_request_authorized(req, configured_api_key())) {
+        return { 401, "Unauthorized", "application/json; charset=utf-8", "WWW-Authenticate: Bearer\r\n",
+                 "{\"status\":\"error\",\"error\":\"API key invalida o ausente\"}" };
     }
 
     if (req.method == "GET" && req.path == "/models") {

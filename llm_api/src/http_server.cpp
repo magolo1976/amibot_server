@@ -477,6 +477,13 @@ void HttpServer::accept_loop() {
             HttpRequest parsed = parse_http_request(raw_req);
             std::string ws_key = extract_ws_key(raw_req);
             if (!ws_key.empty()) {
+                if (!is_request_authorized(parsed, configured_api_key())) {
+                    std::string deny = build_http_response(401, "Unauthorized",
+                        "{\"status\":\"error\",\"error\":\"API key invalida o ausente\"}");
+                    send(client_sock, deny.data(), static_cast<int>(deny.size()), 0);
+                    CLOSE_SOCK(client_sock);
+                    continue;
+                }
                 std::string q = parsed.query;
                 std::thread([this, client_sock, ws_key, q]() {
                     handle_esp32_websocket_session(client_sock, service_, ws_key, q);
