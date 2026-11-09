@@ -468,41 +468,48 @@ void HttpServer::accept_loop() {
         int nodelay = 1;
 #ifdef _WIN32
         setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&nodelay), sizeof(nodelay));
+        DWORD timeout_ms = 25000;
+        setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms));
+        setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms));
 #else
         setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay));
+        struct timeval tv;
+        tv.tv_sec = 25;
+        tv.tv_usec = 0;
+        setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 #endif
 
-        std::string raw_req = read_full_http_message(client_sock);
-        if (!raw_req.empty()) {
-            HttpRequest parsed = parse_http_request(raw_req);
-            std::string ws_key = extract_ws_key(raw_req);
-            if (!ws_key.empty()) {
-                if (!is_request_authorized(parsed, configured_api_key())) {
-                    std::string deny = build_http_response(401, "Unauthorized",
-                        "{\"status\":\"error\",\"error\":\"API key invalida o ausente\"}");
-                    send(client_sock, deny.data(), static_cast<int>(deny.size()), 0);
-                    CLOSE_SOCK(client_sock);
-                    continue;
-                }
-                std::string q = parsed.query;
-                std::thread([this, client_sock, ws_key, q]() {
+        std::thread([this, client_sock]() {
+            std::string raw_req = read_full_http_message(client_sock);
+            if (!raw_req.empty()) {
+                HttpRequest parsed = parse_http_request(raw_req);
+                std::string ws_key = extract_ws_key(raw_req);
+                if (!ws_key.empty()) {
+                    if (!is_request_authorized(parsed, configured_api_key())) {
+                        std::string deny = build_http_response(401, "Unauthorized",
+                            "{\"status\":\"error\",\"error\":\"API key invalida o ausente\"}");
+                        send(client_sock, deny.data(), static_cast<int>(deny.size()), 0);
+                        CLOSE_SOCK(client_sock);
+                        return;
+                    }
+                    std::string q = parsed.query;
                     handle_esp32_websocket_session(client_sock, service_, ws_key, q);
                     CLOSE_SOCK(client_sock);
-                }).detach();
-                continue;
-            }
+                    return;
+                }
 
-            HttpResponse resp = service_.handle_http_request(parsed);
-            std::string raw_resp = build_http_response(resp);
-            size_t total_sent = 0;
-            while (total_sent < raw_resp.size()) {
-                int n = send(client_sock, raw_resp.data() + total_sent, static_cast<int>(raw_resp.size() - total_sent), 0);
-                if (n <= 0) break;
-                total_sent += static_cast<size_t>(n);
+                HttpResponse resp = service_.handle_http_request(parsed);
+                std::string raw_resp = build_http_response(resp);
+                size_t total_sent = 0;
+                while (total_sent < raw_resp.size()) {
+                    int n = send(client_sock, raw_resp.data() + total_sent, static_cast<int>(raw_resp.size() - total_sent), 0);
+                    if (n <= 0) break;
+                    total_sent += static_cast<size_t>(n);
+                }
             }
-        }
-
-        CLOSE_SOCK(client_sock);
+            CLOSE_SOCK(client_sock);
+        }).detach();
     }
 }
 
