@@ -818,6 +818,108 @@ HttpResponse ApiService::handle_http_request(const HttpRequest& req) {
         return { 200, "OK", "application/json; charset=utf-8", "", oss.str() };
     }
 
+    // ------------------------------------------------------------------------
+    // Endpoint: POST /stt — Solo Reconocimiento de Voz (stt_comms Whisper)
+    // ------------------------------------------------------------------------
+    if (req.method == "POST" && req.path == "/stt") {
+        auto t0 = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!ensure_stt_loaded()) {
+            return { 500, "Internal Server Error", "application/json; charset=utf-8", "",
+                     "{\"status\":\"error\",\"error\":\"No se pudo inicializar STT (Whisper)\"}" };
+        }
+        std::string raw_audio = req.body;
+        if (raw_audio.empty()) {
+            return { 400, "Bad Request", "application/json; charset=utf-8", "",
+                     "{\"status\":\"error\",\"error\":\"No se recibio audio para transcribir\"}" };
+        }
+        size_t first_non_ws = 0;
+        while (first_non_ws < raw_audio.size() && std::isspace(static_cast<unsigned char>(raw_audio[first_non_ws]))) ++first_non_ws;
+        if (first_non_ws < raw_audio.size() && raw_audio[first_non_ws] == '{') {
+            std::string b64 = json_extract_string(raw_audio, "audio");
+            if (!b64.empty()) raw_audio = base64_decode(b64);
+        }
+
+        std::string payload = unwrap_esp32_audio_frames(unwrap_multipart_if_needed(raw_audio));
+        stt_comms::TranscribeOptions stt_opts;
+        stt_opts.language = query_extract_param(req.query, "lang", "auto");
+
+        std::string transcribed;
+        const bool has_riff = (payload.size() >= 12 &&
+                               std::memcmp(payload.data(), "RIFF", 4) == 0 &&
+                               std::memcmp(payload.data() + 8, "WAVE", 4) == 0);
+        if (has_riff) {
+            transcribed = stt_client_.transcribe_wav_bytes(
+                reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), stt_opts);
+        } else {
+            std::vector<float> samples_16k;
+            int rate = std::atoi(query_extract_param(req.query, "sample_rate", "16000").c_str());
+            convert_raw_pcm16_to_16k_float(
+                reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), rate > 0 ? rate : 16000, samples_16k);
+            transcribed = stt_client_.transcribe_samples(samples_16k.data(), samples_16k.size(), stt_opts);
+        }
+
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - t0).count();
+
+        std::ostringstream oss;
+        oss << "{\"status\":\"ok\""
+            << ",\"text\":\"" << json_escape(transcribed) << "\""
+            << ",\"elapsed_ms\":" << elapsed << "}";
+        return { 200, "OK", "application/json; charset=utf-8",
+                 "X-Transcribed-Text: " + sanitize_header_value(transcribed) + "\r\n" +
+                 "X-Elapsed-Ms: " + std::to_string(elapsed) + "\r\n",
+                 oss.str() };
+    }
+
+    // ------------------------------------------------------------------------
+    // Endpoint: POST /tts — Solo Sintesis de Voz Neuronal (tts_comms Kokoro)
+    // ------------------------------------------------------------------------
+    if (req.method == "POST" && req.path == "/tts") {
+        auto t0 = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!ensure_tts_loaded()) {
+            return { 500, "Internal Server Error", "application/json; charset=utf-8", "",
+                     "{\"status\":\"error\",\"error\":\"No se pudo inicializar TTS (Kokoro ONNX)\"}" };
+        }
+        std::string text = json_extract_string(req.body, "text");
+        if (text.empty()) text = json_extract_string(req.body, "prompt");
+        if (text.empty()) text = query_extract_param(req.query, "text", "");
+        if (text.empty()) {
+            return { 400, "Bad Request", "application/json; charset=utf-8", "",
+                     "{\"status\":\"error\",\"error\":\"Campo 'text' requerido para sintesis TTS\"}" };
+        }
+
+        std::string voice = json_extract_string(req.body, "voice");
+        if (voice.empty()) voice = query_extract_param(req.query, "voice", "ef_dora");
+        float speed = json_extract_float(req.body, "speed", 1.0f);
+
+        tts_comms::SynthesizeOptions tts_opts;
+        tts_opts.voice = voice;
+        tts_opts.speed = speed > 0.0f ? speed : 1.0f;
+
+        std::vector<float> pcm_samples;
+        if (!tts_client_.synthesize_to_pcm(text, pcm_samples, tts_opts)) {
+            std::ostringstream err;
+            err << "{\"status\":\"error\",\"error\":\"" << json_escape(tts_client_.get_last_error()) << "\"}";
+            return { 500, "Internal Server Error", "application/json; charset=utf-8", "", err.str() };
+        }
+
+        auto wav_bytes = tts_comms::encode_wav_bytes(pcm_samples.data(), pcm_samples.size(), tts_comms::TTSCOMMS_SAMPLE_RATE);
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - t0).count();
+
+        HttpResponse resp;
+        resp.status_code = 200;
+        resp.status_text = "OK";
+        resp.content_type = "audio/wav";
+        resp.extra_headers =
+            "X-Voice-Used: " + sanitize_header_value(voice) + "\r\n" +
+            "X-Elapsed-Ms: " + std::to_string(elapsed) + "\r\n";
+        resp.body.assign(reinterpret_cast<const char*>(wav_bytes.data()), wav_bytes.size());
+        return resp;
+    }
+
     if (req.method == "POST" && (req.path == "/voice" || req.path == "/esp32" || req.path == "/generate" || req.path == "/chat" || req.path == "/")) {
         size_t first_non_ws = 0;
         while (first_non_ws < req.body.size() && std::isspace(static_cast<unsigned char>(req.body[first_non_ws]))) {
