@@ -228,6 +228,7 @@ std::string build_http_response(const HttpResponse& resp) {
         << "Access-Control-Allow-Origin: *\r\n"
         << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
         << "Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key\r\n"
+        << "Access-Control-Expose-Headers: *\r\n"
         << resp.extra_headers
         << "Connection: close\r\n"
         << "Content-Length: " << resp.body.size() << "\r\n\r\n";
